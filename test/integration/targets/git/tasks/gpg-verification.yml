@@ -1,0 +1,107 @@
+---
+# Test for verification of GnuPG signatures
+
+- name: Import Andreas Olsson GnuPG key
+  command: gpg --keyserver keyserver.ubuntu.com --recv-key 0x210FE3E069ED67A8
+
+- name: Clone repo and verify signed HEAD
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    verify_commit: yes
+
+- name: Clone repo and verify a signed lightweight tag
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: lightweight_tag/signed_commit
+    verify_commit: yes
+
+- name: Clone repo and verify an unsigned lightweight tag (should fail)
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: lightweight_tag/unsigned_commit
+    verify_commit: yes
+  register: git_verify
+  ignore_errors: yes
+
+- name: Check that unsigned lightweight tag verification failed
+  assert:
+    that:
+      - git_verify|failed
+      - git_verify.msg|match("Failed to verify GPG signature of commit/tag.+")
+
+- name: Clone repo and verify a signed commit
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: 33eb82cf5610099cc5d92081e6af00cad48ea1d8
+    verify_commit: yes
+
+- name: Clone repo and verify an unsigned commit
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: 4d64303057765f8d70967772362915287ce994b7
+    verify_commit: yes
+  register: git_verify
+  ignore_errors: yes
+
+- name: Check that unsigned commit verification failed
+  assert:
+    that:
+      - git_verify|failed
+      - git_verify.msg|match("Failed to verify GPG signature of commit/tag.+")
+
+- name: Clone repo and verify a signed annotated tag
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: signed_annotated_tag
+    verify_commit: yes
+
+- name: Clone repo and verify an unsigned annotated tag (should fail)
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: unsigned_annotated_tag
+    verify_commit: yes
+  register: git_verify
+  ignore_errors: yes
+
+- name: Check that unsigned annotated tag verification failed
+  assert:
+    that:
+      - git_verify|failed
+      - git_verify.msg|match("Failed to verify GPG signature of commit/tag.+")
+
+- name: Clone repo and verify a signed branch
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: some_branch/signed_tip
+    verify_commit: yes
+
+- name: Clone repo and verify an unsigned branch (should fail)
+  git:
+    repo: "{{ repo_verify }}"
+    dest: "{{ checkout_dir }}"
+    version: another_branch/unsigned_tip
+    verify_commit: yes
+  register: git_verify
+  ignore_errors: yes
+
+- name: Check that unsigned branch verification failed
+  assert:
+    that:
+      - git_verify|failed
+      - git_verify.msg|match("Failed to verify GPG signature of commit/tag.+")
+
+- name: Remove Andreas Olsson GnuPG key
+  command: gpg --batch --yes --delete-key 0x210FE3E069ED67A8
+
+- name: clear checkout_dir
+  file:
+    state: absent
+    path: "{{ checkout_dir }}"
